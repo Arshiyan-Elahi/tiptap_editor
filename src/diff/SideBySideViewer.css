@@ -5,13 +5,14 @@
 .sbs-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, .8);
+    background: rgba(15, 23, 42, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 10000;
     padding: 20px;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .sbs-modal {
@@ -19,11 +20,12 @@
     width: 100%;
     max-width: 1400px;
     height: min(92vh, 100dvh);
+    max-height: 100%;
     border-radius: 14px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, .15);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* HEADER */
@@ -32,6 +34,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
     padding: 14px 20px;
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
@@ -44,12 +47,13 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    color: #0f172a;
 }
 
 .sbs-badge {
     padding: 3px 8px;
     border-radius: 6px;
-    font-size: .8rem;
+    font-size: 0.8rem;
     font-weight: 600;
 }
 
@@ -69,6 +73,8 @@
     font-size: 26px;
     cursor: pointer;
     color: #64748b;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
 .sbs-close:hover {
@@ -104,9 +110,10 @@
     padding: 10px 20px;
     background: white;
     border-bottom: 1px solid #e2e8f0;
-    font-size: .75rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
+    color: #475569;
     flex-shrink: 0;
 }
 
@@ -120,6 +127,20 @@
     padding: 28px 34px;
     background: white;
     -webkit-overflow-scrolling: touch;
+}
+
+.sbs-content.read-only {
+    outline: none !important;
+}
+
+.sbs-content.read-only [block-id]::before {
+    display: none !important;
+}
+
+.sbs-content.read-only [block-id] {
+    border-left: none !important;
+    padding-left: 0 !important;
+    margin-bottom: 1em !important;
 }
 
 /* DIFF COLORS */
@@ -143,6 +164,10 @@
     padding-left: 12px;
 }
 
+.diff-word {
+    transition: all 0.2s ease;
+}
+
 .diff-word-added {
     background: #ccffd8;
     border-bottom: 2px solid #2da44e;
@@ -153,18 +178,63 @@
     text-decoration: line-through;
 }
 
+/* TABLE DIFF SUPPORT */
+
+.sbs-content table.diff-added td {
+    background-color: #dcfce7 !important;
+}
+
+.sbs-content table.diff-removed td {
+    background-color: #fee2e2 !important;
+}
+
+.sbs-content td.diff-added {
+    background-color: #dcfce7 !important;
+}
+
+.sbs-content td.diff-removed {
+    background-color: #fee2e2 !important;
+}
+
+.sbs-content td.diff-modified {
+    background-color: #fefce8 !important;
+}
+
+/* NO CHANGES */
+
+.no-changes {
+    text-align: center;
+    color: #64748b;
+    padding: 40px 20px;
+    font-style: italic;
+}
+
+/* TABLET */
+
+@media (max-width: 1024px) {
+    .sbs-modal {
+        max-width: 100%;
+    }
+
+    .sbs-content {
+        padding: 22px 24px;
+    }
+}
+
 /* MOBILE */
 
-@media (max-width:768px) {
-
+@media (max-width: 768px) {
     .sbs-overlay {
         padding: 8px;
         padding-top: max(8px, env(safe-area-inset-top));
+        padding-right: max(8px, env(safe-area-inset-right));
         padding-bottom: max(8px, env(safe-area-inset-bottom));
+        padding-left: max(8px, env(safe-area-inset-left));
     }
 
     .sbs-modal {
-        height: 100dvh;
+        height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+        max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
         border-radius: 8px;
     }
 
@@ -174,6 +244,7 @@
 
     .sbs-panel {
         flex: 1 1 50%;
+        min-height: 0;
         border-right: none;
         border-bottom: 2px solid #e2e8f0;
     }
@@ -182,32 +253,48 @@
         border-bottom: none;
     }
 
+    .sbs-panel-title {
+        padding: 8px 14px;
+        font-size: 0.7rem;
+    }
+
     .sbs-content {
         padding: 18px;
         font-size: 14px;
     }
-
 }
 
 /* SMALL PHONES */
 
-@media (max-width:430px) {
-
+@media (max-width: 430px) {
     .sbs-overlay {
-        padding: 0;
+        padding-top: max(6px, env(safe-area-inset-top));
+        padding-right: 0;
+        padding-bottom: max(6px, env(safe-area-inset-bottom));
+        padding-left: 0;
     }
 
     .sbs-modal {
+        width: 100%;
         border-radius: 0;
+        height: calc(100dvh - max(6px, env(safe-area-inset-top)) - max(6px, env(safe-area-inset-bottom)));
+        max-height: calc(100dvh - max(6px, env(safe-area-inset-top)) - max(6px, env(safe-area-inset-bottom)));
+    }
+
+    .sbs-header {
+        padding: 10px 12px;
     }
 
     .sbs-header h2 {
-        font-size: .85rem;
+        font-size: 0.85rem;
+    }
+
+    .sbs-close {
+        font-size: 24px;
     }
 
     .sbs-content {
         padding: 14px;
         font-size: 13px;
     }
-
 }
