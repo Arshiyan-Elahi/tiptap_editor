@@ -58,29 +58,6 @@ Lodash debounce
 
 ---
 
-
-### Key Files
-
-App.jsx  
-Main application logic including version management, autosave system, keyboard shortcuts, and editor initialization.
-
-SideBySideViewer.jsx  
-Displays two versions of the document for comparison.
-
-SideBySideViewer.css  
-Handles responsive layout and scrolling behavior for the comparison viewer.
-
-VersionDiffEngine.js  
-Responsible for detecting and classifying differences between document versions.
-
-MenuBar.jsx  
-Toolbar controls for formatting, version management, and editor actions.
-
-StatusBar.jsx  
-Displays document statistics such as word count, character count, block count, and save status.
-
----
-
 ## How Versioning Works
 
 Each version of the document is stored as structured JSON. When a new version is created, the editor stores the current document state along with metadata like timestamp and version ID.
