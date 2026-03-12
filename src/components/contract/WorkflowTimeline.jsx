@@ -1,4 +1,5 @@
-import { WORKFLOW_LABELS, WORKFLOW_STATES } from '../../utils/contractConstants'
+import { WORKFLOW_STATES } from '../../utils/contractConstants'
+import { useLanguage } from '../../context/LanguageContext'
 
 const steps = [
     WORKFLOW_STATES.DRAFT,
@@ -9,19 +10,32 @@ const steps = [
 ]
 
 export default function WorkflowTimeline({ workflowStatus }) {
+    const { t } = useLanguage()
+
+    const labels = {
+        [WORKFLOW_STATES.DRAFT]: t.draft,
+        [WORKFLOW_STATES.UNDER_REVIEW]: t.underReview,
+        [WORKFLOW_STATES.CHANGES_REQUESTED]: t.changesRequested,
+        [WORKFLOW_STATES.ACCEPTED]: t.accepted,
+        [WORKFLOW_STATES.REJECTED]: t.rejected,
+    }
+
     return (
         <div className="contract-panel">
-            <h3>Workflow</h3>
+            <h3>{t.workflow}</h3>
 
             <div className="workflow-list">
                 {steps.map((step) => {
                     const isActive = workflowStatus === step
 
                     return (
-                        <div key={step} className={`workflow-item ${isActive ? 'active' : ''}`}>
+                        <div
+                            key={step}
+                            className={`workflow-item ${isActive ? 'active' : ''}`}
+                        >
                             <div className="workflow-dot" />
-                            <span>{WORKFLOW_LABELS[step]}</span>
-                            {isActive && <span className="current-badge">Current</span>}
+                            <span>{labels[step]}</span>
+                            {isActive && <span className="current-badge">{t.current}</span>}
                         </div>
                     )
                 })}

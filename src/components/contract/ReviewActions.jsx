@@ -1,3 +1,5 @@
+import { useLanguage } from '../../context/LanguageContext'
+
 export default function ReviewActions({
     workflowStatus,
     setUnderReview,
@@ -5,19 +7,31 @@ export default function ReviewActions({
     setChangesRequested,
     setRejected,
 }) {
+    const { t } = useLanguage()
+
     return (
         <div className="contract-panel">
-            <h3>Client Review</h3>
+            <h3>{t.clientReview}</h3>
 
-            <p className="muted-text">Current status: {workflowStatus}</p>
+            <p className="muted-text">
+                {t.currentStatus}: {workflowStatus}
+            </p>
 
             <div className="review-actions">
-                <button type="button" onClick={setUnderReview} className="primary-btn">
-                    Send For Review
+                <button
+                    type="button"
+                    onClick={setUnderReview}
+                    className="primary-btn"
+                >
+                    {t.sendForReview}
                 </button>
 
-                <button type="button" onClick={setAccepted} className="success-btn">
-                    Accept
+                <button
+                    type="button"
+                    onClick={setAccepted}
+                    className="success-btn"
+                >
+                    {t.accept}
                 </button>
 
                 <button
@@ -25,11 +39,15 @@ export default function ReviewActions({
                     onClick={setChangesRequested}
                     className="warning-btn"
                 >
-                    Request Changes
+                    {t.requestChanges}
                 </button>
 
-                <button type="button" onClick={setRejected} className="danger-btn">
-                    Reject
+                <button
+                    type="button"
+                    onClick={setRejected}
+                    className="danger-btn"
+                >
+                    {t.reject}
                 </button>
             </div>
         </div>

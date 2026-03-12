@@ -1,7 +1,7 @@
 import { useEditorState } from "@tiptap/react";
 import { menuBarStateSelector } from "./menuBarState";
 import { useState } from "react";
-
+import { useLanguage } from "../context/LanguageContext";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
@@ -31,12 +31,8 @@ export const MenuBar = ({
         selector: menuBarStateSelector,
     });
 
-
+    const { t } = useLanguage();
     const [selectedPlaceholder, setSelectedPlaceholder] = useState("");
-
-
-
-
 
     if (!editor) return null;
 
@@ -49,19 +45,19 @@ export const MenuBar = ({
                 <button
                     type="button"
                     onClick={onSave}
-                    title={`Manual Save (${shortcut("S")})`}
+                    title={`${t.save} (${shortcut("S")})`}
                     className="save-btn"
                 >
-                    Save
+                    {t.save}
                 </button>
 
                 <button
                     type="button"
                     onClick={onNewVersion}
-                    title={`Create New Version (${shortcutShift("V")})`}
+                    title={`${t.newVersion} (${shortcutShift("V")})`}
                     className="version-btn"
                 >
-                    New Version
+                    {t.newVersion}
                 </button>
 
                 <select
@@ -80,125 +76,120 @@ export const MenuBar = ({
                     type="button"
                     onClick={onOpenPreview}
                     className="pdf-export-btn"
-                    title={`Preview / Export PDF (${shortcutAlt("P")})`}
+                    title={`${t.previewExport} (${shortcutAlt("P")})`}
                 >
-                    Preview & Export
+                    {t.previewExport}
                 </button>
 
                 <button
                     type="button"
-                    title={`Bold (${shortcut("B")})`}
+                    title={`${t.bold} (${shortcut("B")})`}
                     onClick={() => editor.chain().focus().toggleBold().run()}
                     disabled={!editorState.canBold}
                     className={editorState.isBold ? "is-active" : ""}
                 >
-                    Bold
+                    {t.bold}
                 </button>
 
                 <button
                     type="button"
-                    title={`Italic (${shortcut("I")})`}
+                    title={`${t.italic} (${shortcut("I")})`}
                     onClick={() => editor.chain().focus().toggleItalic().run()}
                     disabled={!editorState.canItalic}
                     className={editorState.isItalic ? "is-active" : ""}
                 >
-                    Italic
+                    {t.italic}
                 </button>
-
-
 
                 <button
                     type="button"
-                    title={`Underline (${shortcut("U")})`}
+                    title={`${t.underline} (${shortcut("U")})`}
                     onClick={() => editor.chain().focus().toggleUnderline().run()}
                     className={editorState.isUnderline ? "is-active" : ""}
                 >
-                    Underline
+                    {t.underline}
                 </button>
-
-
 
                 <button
                     type="button"
-                    title={`Strikethrough (${shortcutShift("X")})`}
+                    title={`${t.strike} (${shortcutShift("X")})`}
                     onClick={() => editor.chain().focus().toggleStrike().run()}
                     disabled={!editorState.canStrike}
                     className={editorState.isStrike ? "is-active" : ""}
                 >
-                    Strike
+                    {t.strike}
                 </button>
 
                 <button
                     type="button"
-                    title={`Heading 1 (${isMac ? "Alt + 1" : "Alt + 1"})`}
+                    title={`${t.heading1} (Alt + 1)`}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
                     className={editorState.isHeading1 ? "is-active" : ""}
                 >
-                    Heading 1
+                    {t.heading1}
                 </button>
 
                 <button
                     type="button"
-                    title={`Heading 2 (${isMac ? "Alt + 2" : "Alt + 2"})`}
+                    title={`${t.heading2} (Alt + 2)`}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                     className={editorState.isHeading2 ? "is-active" : ""}
                 >
-                    Heading 2
+                    {t.heading2}
                 </button>
 
                 <button
                     type="button"
-                    title={`Heading 3 (${isMac ? "Alt + 3" : "Alt + 3"})`}
+                    title={`${t.heading3} (Alt + 3)`}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
                     className={editorState.isHeading3 ? "is-active" : ""}
                 >
-                    Heading 3
+                    {t.heading3}
                 </button>
 
                 <button
                     type="button"
-                    title={`Bullet List (${shortcutShift("L")})`}
+                    title={`${t.bulletList} (${shortcutShift("L")})`}
                     onClick={() => editor.chain().focus().toggleBulletList().run()}
                     className={editorState.isBulletList ? "is-active" : ""}
                 >
-                    Bullet List
+                    {t.bulletList}
                 </button>
 
                 <button
                     type="button"
-                    title={`Numbered List (${shortcutShift("7")})`}
+                    title={`${t.numberedList} (${shortcutShift("7")})`}
                     onClick={() => editor.chain().focus().toggleOrderedList().run()}
                     className={editorState.isOrderedList ? "is-active" : ""}
                 >
-                    Numbered List
+                    {t.numberedList}
                 </button>
 
                 <button
                     type="button"
-                    title={`Undo (${shortcut("Z")})`}
+                    title={`${t.undo} (${shortcut("Z")})`}
                     onClick={() => editor.chain().focus().undo().run()}
                     disabled={!editorState.canUndo}
                 >
-                    Undo
+                    {t.undo}
                 </button>
 
                 <button
                     type="button"
-                    title={`Redo (${shortcutShift("Z")})`}
+                    title={`${t.redo} (${shortcutShift("Z")})`}
                     onClick={() => editor.chain().focus().redo().run()}
                     disabled={!editorState.canRedo}
                 >
-                    Redo
+                    {t.redo}
                 </button>
 
                 <button
                     type="button"
-                    title={`Insert Link (${shortcut("K")})`}
+                    title={`${t.insertUrl} (${shortcut("K")})`}
                     onClick={onOpenLinkModal}
                 >
-                    Insert URL
+                    {t.insertUrl}
                 </button>
-
 
                 {profile?.toLowerCase() === 'contract' && (
                     <select
@@ -211,7 +202,7 @@ export const MenuBar = ({
                             if (!value) return
 
                             if (value === '__custom__') {
-                                const customName = window.prompt('Enter custom placeholder name')
+                                const customName = window.prompt(t.custom)
                                 if (customName?.trim()) {
                                     onInsertPlaceholder?.(customName.trim())
                                     setSelectedPlaceholder(customName.trim())
@@ -221,21 +212,14 @@ export const MenuBar = ({
                             }
                         }}
                     >
-                        <option value="">Insert Placeholder</option>
-                        <option value="ClientName">Client Name</option>
-                        <option value="Address">Address</option>
-                        <option value="Date">Date</option>
-                        <option value="Amount">Amount</option>
-                        <option value="__custom__">Custom...</option>
+                        <option value="">{t.insertPlaceholder}</option>
+                        <option value="ClientName">{t.clientName}</option>
+                        <option value="Address">{t.address}</option>
+                        <option value="Date">{t.date}</option>
+                        <option value="Amount">{t.amount}</option>
+                        <option value="__custom__">{t.custom}</option>
                     </select>
                 )}
-
-
-
-
-
-
-
 
                 <div className="compare-controls">
                     <select
@@ -245,12 +229,12 @@ export const MenuBar = ({
                     >
                         {versions.map(v => (
                             <option key={v.id} value={v.id}>
-                                Base: {v.id}
+                                {t.base}: {v.id}
                             </option>
                         ))}
                     </select>
 
-                    <span className="compare-vs">vs</span>
+                    <span className="compare-vs">{t.vs}</span>
 
                     <select
                         id="compareV2"
@@ -259,7 +243,7 @@ export const MenuBar = ({
                     >
                         {versions.map(v => (
                             <option key={v.id} value={v.id}>
-                                Target: {v.id}
+                                {t.target}: {v.id}
                             </option>
                         ))}
                     </select>
@@ -267,81 +251,81 @@ export const MenuBar = ({
                     <button
                         type="button"
                         className="compare-btn"
-                        title="Compare Versions"
+                        title={t.compare}
                         onClick={() => {
                             const v1 = document.getElementById("compareV1").value;
                             const v2 = document.getElementById("compareV2").value;
                             onCompare(v1, v2);
                         }}
                     >
-                        Compare
+                        {t.compare}
                     </button>
                 </div>
 
                 <button
                     type="button"
-                    title={`Insert Table (Alt + T)`}
+                    title={t.insertTable}
                     onClick={() => editor.chain().focus().insertTable({ rows: 4, cols: 4, withHeaderRow: true }).run()}
                 >
-                    Insert Table
+                    {t.insertTable}
                 </button>
 
                 {isInTable && (
                     <>
                         <button
                             type="button"
-                            title="Add Column Before"
+                            title={t.addColBefore}
                             onClick={() => editor.chain().focus().addColumnBefore().run()}
                         >
-                            Add Col Before
+                            {t.addColBefore}
                         </button>
 
                         <button
                             type="button"
-                            title="Add Column After"
+                            title={t.addColAfter}
                             onClick={() => editor.chain().focus().addColumnAfter().run()}
                         >
-                            Add Col After
+                            {t.addColAfter}
                         </button>
 
                         <button
                             type="button"
-                            title="Delete Column"
+                            title={t.deleteColumn}
                             onClick={() => editor.chain().focus().deleteColumn().run()}
                         >
-                            Delete Column
+                            {t.deleteColumn}
                         </button>
 
                         <button
                             type="button"
-                            title="Add Row Before"
+                            title={t.addRowBefore}
                             onClick={() => editor.chain().focus().addRowBefore().run()}
                         >
-                            Add Row Before
+                            {t.addRowBefore}
                         </button>
 
                         <button
                             type="button"
-                            title="Add Row After"
+                            title={t.addRowAfter}
                             onClick={() => editor.chain().focus().addRowAfter().run()}
                         >
-                            Add Row After
+                            {t.addRowAfter}
                         </button>
 
                         <button
                             type="button"
-                            title="Delete Row"
+                            title={t.deleteRow}
                             onClick={() => editor.chain().focus().deleteRow().run()}
                         >
-                            Delete Row
+                            {t.deleteRow}
                         </button>
 
                         <button
                             type="button"
-                            title="Delete Table"
+                            title={t.deleteTable}
                             onClick={() => editor.chain().focus().deleteTable().run()}
                         >
-                            Delete Table
+                            {t.deleteTable}
                         </button>
                     </>
                 )}

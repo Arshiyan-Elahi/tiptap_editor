@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 const StatusBar = ({
     wordCount,
@@ -9,11 +10,13 @@ const StatusBar = ({
     profile = "contract",
     onProfileChange,
 }) => {
+    const { language, setLanguage, t } = useLanguage();
+
     return (
         <div className="status-bar">
             <div className="status-left">
                 <span className="word-count">
-                    {wordCount} words | {charCount} characters | {blockCount} blocks
+                    {wordCount} {t.words} | {charCount} {t.characters} | {blockCount} {t.blocks}
                 </span>
             </div>
 
@@ -23,17 +26,26 @@ const StatusBar = ({
                     onChange={(e) => onProfileChange(e.target.value)}
                     className="version-select profile-select-status"
                 >
-                    <option value="contract">Profile: Contract</option>
-                    <option value="sop">Profile: SOP</option>
+                    <option value="contract">{t.profileContract}</option>
+                    <option value="sop">{t.profileSop}</option>
+                </select>
+
+                <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="version-select profile-select-status"
+                >
+                    <option value="en">{t.english}</option>
+                    <option value="de">{t.german}</option>
                 </select>
             </div>
 
             <div className="status-right">
                 {isSaving ? (
-                    <span className="saving-indicator">Saving...</span>
+                    <span className="saving-indicator">{t.saving}</span>
                 ) : (
                     <span className="last-saved">
-                        Saved {lastSaved ? lastSaved.toLocaleTimeString() : 'never'}
+                        {t.saved} {lastSaved ? lastSaved.toLocaleTimeString() : t.never}
                     </span>
                 )}
             </div>
