@@ -1,19 +1,27 @@
 import React, { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { resolveTextWithVariables } from '../utils/resolveVariables';
 
-const PreviewModal = ({ isOpen, onClose, editor, versionId }) => {
+const PreviewModal = ({
+    isOpen,
+    onClose,
+    editor,
+    versionId,
+    contractVariables = {},
+}) => {
     const previewRef = useRef(null);
     const [scale, setScale] = useState(1);
     const [orientation, setOrientation] = useState('portrait');
 
     if (!isOpen || !editor) return null;
 
-    const content = editor.getHTML();
+    const rawContent = editor.getHTML();
+    const resolvedContent = resolveTextWithVariables(rawContent, contractVariables);
 
     const buildCleanExportHtml = () => {
         const parser = new DOMParser();
-        const doc = parser.parseFromString(content, 'text/html');
+        const doc = parser.parseFromString(resolvedContent, 'text/html');
 
         doc.querySelectorAll('[block-id]').forEach((el) => {
             el.removeAttribute('block-id');
@@ -166,6 +174,7 @@ const PreviewModal = ({ isOpen, onClose, editor, versionId }) => {
 
         return exportWrapper;
     };
+
     const handlePrint = () => {
         const cleanContent = buildCleanExportHtml();
         const printWindow = window.open('', '_blank');
@@ -251,13 +260,13 @@ const PreviewModal = ({ isOpen, onClose, editor, versionId }) => {
                 scale: 3,
                 useCORS: true,
                 backgroundColor: '#ffffff',
-                logging: false
+                logging: false,
             });
 
             const pdf = new jsPDF({
                 orientation,
                 unit: 'mm',
-                format: 'a4'
+                format: 'a4',
             });
 
             const pageWidth = orientation === 'portrait' ? 210 : 297;
@@ -291,7 +300,7 @@ const PreviewModal = ({ isOpen, onClose, editor, versionId }) => {
 
     const handleExportWord = () => {
         const parser = new DOMParser();
-        const doc = parser.parseFromString(content, 'text/html');
+        const doc = parser.parseFromString(resolvedContent, 'text/html');
 
         doc.querySelectorAll('[block-id]').forEach((el) => {
             el.removeAttribute('block-id');
@@ -346,7 +355,7 @@ const PreviewModal = ({ isOpen, onClose, editor, versionId }) => {
             "</style>" +
             "</head><body>";
 
-        const footer = "</body></html>";
+        const footer = '</body></html>';
         const sourceHTML = header + modifiedContent + footer;
 
         const source =
@@ -412,12 +421,12 @@ const PreviewModal = ({ isOpen, onClose, editor, versionId }) => {
                             transformOrigin: 'top center',
                             marginLeft: 'auto',
                             marginRight: 'auto',
-                            marginBottom: `${Math.max(0, (scale - 1) * 320)}px`
+                            marginBottom: `${Math.max(0, (scale - 1) * 320)}px`,
                         }}
                     >
                         <div
                             className="tiptap preview-content"
-                            dangerouslySetInnerHTML={{ __html: content }}
+                            dangerouslySetInnerHTML={{ __html: resolvedContent }}
                         />
                     </div>
                 </div>
