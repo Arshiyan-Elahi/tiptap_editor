@@ -411,6 +411,9 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .status-right {
@@ -453,6 +456,8 @@ body {
   color: #1e293b;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin: 0 4px;
+
 }
 
 .profile-select-status:hover {
