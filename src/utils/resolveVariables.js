@@ -6,7 +6,8 @@
  */
 
 // Regular expression to match variables encapsulated by double curly braces.
-export const PLACEHOLDER_REGEX = /\{\{([A-Za-z0-9_]+)\}\}/g;
+// Regular expression to match variables encapsulated by double curly braces, allowing optional spaces.
+export const PLACEHOLDER_REGEX = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 /**
  * Extracts a unique list of placeholder names from a given text string.
@@ -45,17 +46,31 @@ export const buildVariablesObject = (placeholderNames = [], existingValues = {})
  * @returns {string} The formatted text with placeholders resolved.
  */
 export const resolveTextWithVariables = (text = "", variables = {}) => {
-    return text.replace(PLACEHOLDER_REGEX, (_, name) => {
-        const value = variables[name];
+    if (!text) return "";
+    
+    // Create a normalized map for case-insensitive lookup if needed, 
+    // or just stick to exact matching but ensure we trim.
+    return text.replace(PLACEHOLDER_REGEX, (fullMatch, name) => {
+        // Look for the exact key
+        let value = variables[name];
+        
+        // If not found, try a case-insensitive search in the variables object
+        if (value === undefined || value === null) {
+            const keys = Object.keys(variables);
+            const foundKey = keys.find(k => k.toLowerCase() === name.toLowerCase());
+            if (foundKey) {
+                value = variables[foundKey];
+            }
+        }
 
-        // If no value exists in the dictionary, leave the placeholder intact
+        // If still no value exists, leave the placeholder intact
         if (value === null || value === undefined) {
-            return `{{${name}}}`;
+            return fullMatch;
         }
 
         const stringValue = String(value).trim();
 
         // If the variable is merely whitespace or empty, keep the placeholder visible
-        return stringValue ? stringValue : `{{${name}}}`;
+        return stringValue ? stringValue : fullMatch;
     });
 };

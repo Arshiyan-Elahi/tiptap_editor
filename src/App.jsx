@@ -15,7 +15,8 @@ import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
-import { extractPlaceholdersFromText } from './utils/resolveVariables'
+import { extractPlaceholdersFromText, resolveTextWithVariables } from './utils/resolveVariables'
+import { printDocument } from './utils/printHelpers'
 import { MenuBar } from './components/MenuBar'
 import StatusBar from './components/StatusBar'
 import LinkModal from './components/LinkModal'
@@ -116,10 +117,6 @@ const App = () => {
     }
   }, [normalizedProfile])
 
-  /**
-   * Debounced function to auto-save document changes.
-   * Prevents saving on every keystroke and instead waits for a pause in typing.
-   */
   const debouncedSave = useMemo(
     () =>
       debounce((json, vId, setVersionsRef, setLastSavedRef, setIsSavingRef) => {
@@ -147,67 +144,6 @@ const App = () => {
       }, 2000),
     [variables]
   )
-
-  /**
-   * Manually saves the current editor state immediately, bypassing debounce.
-   */
-  const manualSave = useCallback(() => {
-    if (!window.editorInstance) return
-
-    debouncedSave.cancel()
-    setIsSaving(true)
-
-    const json = window.editorInstance.getJSON()
-
-    setVersions((prev) => {
-      const updated = prev.map((v) =>
-        v.id === currentVersionId
-          ? {
-            ...v,
-            json,
-            timestamp: formatTimestamp(new Date()),
-            isFormatted: true,
-            metadata: {
-              ...(v.metadata || {}),
-              variables,
-            },
-          }
-          : v
-      )
-      saveToStorage(updated)
-      setLastSaved(new Date())
-      setTimeout(() => setIsSaving(false), 800)
-      return updated
-    })
-  }, [currentVersionId, debouncedSave, variables])
-
-  /**
-   * Creates a new document version snapshot.
-   */
-  const createNewVersion = useCallback(() => {
-    if (!window.editorInstance) return
-
-    setVersions((prev) => {
-      const versionNumber = prev.length + 1
-      const newId = `v${versionNumber}`
-      const json = window.editorInstance.getJSON()
-
-      const newVersion = {
-        id: newId,
-        json,
-        timestamp: formatTimestamp(new Date()),
-        isFormatted: true,
-        metadata: {
-          variables,
-        },
-      }
-
-      const updated = [...prev, newVersion]
-      saveToStorage(updated)
-      setCurrentVersionId(newId)
-      return updated
-    })
-  }, [variables])
 
   // Initialize Tiptap editor extensions
   const extensions = useMemo(
@@ -241,18 +177,6 @@ const App = () => {
         const e = event
         const mod = e.ctrlKey || e.metaKey
         const key = e.key.toLowerCase()
-
-        if (mod && !e.shiftKey && !e.altKey && key === 's') {
-          e.preventDefault()
-          manualSave()
-          return true
-        }
-
-        if (mod && e.shiftKey && !e.altKey && key === 'v') {
-          e.preventDefault()
-          createNewVersion()
-          return true
-        }
 
         if (mod && e.altKey && key === 'p') {
           e.preventDefault()
@@ -338,6 +262,58 @@ const App = () => {
       'Amount',
     ];
   }, [editor]);
+
+  /**
+   * Manually saves the current editor state immediately, bypassing debounce.
+   */
+  const manualSave = useCallback(() => {
+    if (!editor) return
+    debouncedSave.cancel()
+    setIsSaving(true)
+    const json = editor.getJSON()
+    setVersions((prev) => {
+      const updated = prev.map((v) =>
+        v.id === currentVersionId
+          ? {
+            ...v,
+            json,
+            timestamp: formatTimestamp(new Date()),
+            isFormatted: true,
+            metadata: {
+              ...(v.metadata || {}),
+              variables,
+            },
+          }
+          : v
+      )
+      saveToStorage(updated)
+      setLastSaved(new Date())
+      setTimeout(() => setIsSaving(false), 800)
+      return updated
+    })
+  }, [editor, currentVersionId, debouncedSave, variables])
+
+  const createNewVersion = useCallback(() => {
+    if (!editor) return
+    setVersions((prev) => {
+      const versionNumber = prev.length + 1
+      const newId = `v${versionNumber}`
+      const json = editor.getJSON()
+      const newVersion = {
+        id: newId,
+        json,
+        timestamp: formatTimestamp(new Date()),
+        isFormatted: true,
+        metadata: { variables },
+      }
+      const updated = [...prev, newVersion]
+      saveToStorage(updated)
+      setCurrentVersionId(newId)
+      return updated
+    })
+  }, [editor, variables])
+
+
 
 
 
@@ -450,6 +426,37 @@ const App = () => {
       editor.off('update', updatePlaceholdersFromEditor)
     }
   }, [editor, syncPlaceholders])
+
+  // Global Shortcuts for saving, versioning, and printing
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      const mod = e.ctrlKey || e.metaKey
+      const key = e.key.toLowerCase()
+
+      if (!editor) return
+
+      // Ctrl + S (Save)
+      if (mod && !e.shiftKey && !e.altKey && key === 's') {
+        e.preventDefault()
+        manualSave()
+      }
+
+      // Ctrl + Shift + V (New Version)
+      if (mod && e.shiftKey && !e.altKey && key === 'v') {
+        e.preventDefault()
+        createNewVersion()
+      }
+
+      // Ctrl + P (Print) - Native Override
+      if (mod && !e.shiftKey && !e.altKey && key === 'p') {
+        e.preventDefault()
+        printDocument(editor.getHTML(), variables)
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [editor, variables, manualSave, createNewVersion])
 
   if (!editor) return <div className="loading">Loading AI-LAW Editor...</div>
 

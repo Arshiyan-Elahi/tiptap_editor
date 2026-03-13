@@ -10,6 +10,7 @@ import React, { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { resolveTextWithVariables } from '../utils/resolveVariables';
+import { printDocument } from '../utils/printHelpers';
 
 /**
  * Preview and Export Modal Component.
@@ -210,77 +211,7 @@ const PreviewModal = ({
      * writes the cleaned HTML into it with specific `@page` CSS directives, and automatically fires the browser print dialog.
      */
     const handlePrint = () => {
-        const cleanContent = buildCleanExportHtml();
-        const printWindow = window.open('', '_blank');
-
-        if (!printWindow) return;
-
-        printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print Document</title>
-          <style>
-            @page {
-              margin: 20mm;
-              size: A4 ${orientation};
-            }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              padding: 0;
-              margin: 0;
-              color: #000;
-            }
-            .tiptap {
-              line-height: 1.6;
-              font-size: 12pt;
-              max-width: 100%;
-              word-break: break-word;
-            }
-            table {
-              border-collapse: collapse;
-              width: 100%;
-              table-layout: fixed;
-              margin: 1.5em 0;
-              page-break-inside: auto;
-            }
-            tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
-            }
-            th, td {
-              border: 1px solid #000;
-              padding: 8px 12px;
-              text-align: left;
-              vertical-align: top;
-              word-break: break-word;
-            }
-            th {
-              background-color: #f8fafc !important;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              font-weight: bold;
-            }
-            img {
-              max-width: 100%;
-              height: auto;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="tiptap">${cleanContent}</div>
-          <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 300);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-
-        printWindow.document.close();
+        printDocument(editor.getHTML(), contractVariables, orientation);
     };
 
     /**
@@ -460,11 +391,9 @@ const PreviewModal = ({
                         ref={previewRef}
                         className={`preview-page-container ${orientation}`}
                         style={{
-                            transform: `scale(${scale})`,
-                            transformOrigin: 'top center',
+                            zoom: scale,
                             marginLeft: 'auto',
                             marginRight: 'auto',
-                            marginBottom: `${Math.max(0, (scale - 1) * 320)}px`,
                         }}
                     >
                         <div
