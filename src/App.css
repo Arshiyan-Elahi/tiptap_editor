@@ -67,6 +67,70 @@ body {
   transition: all 0.2s ease;
 }
 
+
+
+.placeholder-variable {
+  background-color: rgba(255, 230, 140, 0.45);
+  border-bottom: 1px dotted #a16207;
+  border-radius: 4px;
+  padding: 1px 2px;
+  transition: background-color 0.2s ease;
+}
+
+.placeholder-variable:hover {
+  background-color: rgba(255, 220, 90, 0.65);
+  cursor: pointer;
+}
+
+
+.placeholder-suggestion-popup {
+  position: absolute;
+  z-index: 9999;
+}
+
+.placeholder-suggestion-list {
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.placeholder-suggestion-items {
+  padding: 6px;
+}
+
+.placeholder-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.placeholder-suggestion-item:hover,
+.placeholder-suggestion-item.is-selected {
+  background: #f3f4f6;
+}
+
+.placeholder-suggestion-empty {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+
+
+
+
+
+
+
 .button-group button:hover:not(:disabled) {
   background: #f8fafc;
   border-color: #cbd5e1;

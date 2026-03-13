@@ -25,6 +25,8 @@ import { WORKFLOW_LABELS } from './utils/contractConstants'
 import { debounce } from 'lodash'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 
+import { PlaceholderHighlight } from './extensions/PlaceholderHighlight';
+import { PlaceholderSuggestion } from './extensions/PlaceholderSuggestion';
 import './App.css'
 
 const STORAGE_KEY = 'tiptap_editor_v5_stable'
@@ -192,6 +194,8 @@ const App = () => {
       TableRow,
       TableHeader,
       TableCell,
+      PlaceholderHighlight,
+      PlaceholderSuggestion,
     ],
     []
   )
@@ -289,6 +293,14 @@ const App = () => {
       window.editorInstance = editor
     }
   }, [editor])
+
+
+
+  useEffect(() => {
+    if (!editor) return;
+
+    editor.storage.placeholderSuggestion.items = Object.keys(variables || {});
+  }, [editor, variables]);
 
   useEffect(() => {
     if (!editor) return
