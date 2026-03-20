@@ -67,8 +67,6 @@ body {
   transition: all 0.2s ease;
 }
 
-
-
 .placeholder-variable {
   background-color: rgba(255, 230, 140, 0.45);
   border-bottom: 1px dotted #a16207;
@@ -81,7 +79,6 @@ body {
   background-color: rgba(255, 220, 90, 0.65);
   cursor: pointer;
 }
-
 
 .placeholder-suggestion-popup {
   position: absolute;
@@ -198,7 +195,7 @@ body {
   font-weight: 500;
 }
 
-/* EDITOR */
+/* EDITOR UPDATED */
 .tiptap {
   background: white;
   color: #1f2937;
@@ -220,24 +217,54 @@ body {
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
-/* TABLES */
+.tiptap h1 {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  margin: 24px 0 32px;
+}
+
+.tiptap h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 28px 0 12px;
+}
+
+.tiptap h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 18px 0 10px;
+  text-transform: uppercase;
+}
+
+.tiptap p {
+  margin: 0 0 12px;
+}
+
+/* TABLES UPDATED */
 .tiptap table {
   border-collapse: collapse;
-  table-layout: fixed;
   width: 100%;
-  margin: 24px 0;
+  margin: 10px 0 14px;
+  table-layout: fixed;
 }
 
 .tiptap td,
 .tiptap th {
   min-width: 80px;
-  border: 1px solid #444;
-  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  padding: 8px 10px;
   vertical-align: top;
   box-sizing: border-box;
   position: relative;
   font-size: 14px;
   line-height: 1.4;
+}
+
+.tiptap td:first-child {
+  width: 280px;
+  font-weight: 600;
 }
 
 .tiptap td>*,
@@ -251,11 +278,6 @@ body {
   text-align: left;
 }
 
-.tiptap table td.selectedCell,
-.tiptap table th.selectedCell {
-  background-color: rgba(200, 200, 255, 0.4);
-}
-
 .tiptap table .column-resize-handle {
   background-color: #3b82f6;
   bottom: -2px;
@@ -265,6 +287,38 @@ body {
   width: 4px;
   pointer-events: none;
 }
+
+.tiptap table td.selectedCell,
+.tiptap table th.selectedCell {
+  background-color: rgba(200, 200, 255, 0.4);
+}
+
+/* --- NEW: OCR & STRUCTURED BLOCK STYLES --- */
+.tiptap table.editor-table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.tiptap table.editor-table td {
+  border: 1px solid #ced4da;
+  padding: 8px 12px;
+  min-width: 100px;
+}
+
+/* Two column rows (borderless tables) ke liye */
+.tiptap table[style*="border: none"] td {
+  padding: 4px 0;
+  vertical-align: top;
+}
+
+.tiptap .section-heading {
+  margin-top: 2rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+/* ------------------------------------------ */
 
 /* CONTRACT LAYOUT */
 .editor-layout {
@@ -298,6 +352,72 @@ body {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+/** OCR - Handling **/
+.ocr-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 1rem 0 0.75rem;
+}
+
+.ocr-section-heading {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+
+.ocr-heading {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.ocr-note {
+  background: #f8f9fb;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.ocr-quote {
+  padding-left: 1rem;
+  border-left: 4px solid #999;
+  color: #444;
+  margin: 1rem 0;
+  font-style: italic;
+}
+
+.ocr-two-col-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0.75rem 0;
+}
+
+.ocr-two-col-left,
+.ocr-two-col-right {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.ocr-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.ocr-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  vertical-align: top;
+}
+
+.ocr-divider {
+  margin: 1rem 0;
+  border: none;
+  border-top: 1px solid #ddd;
 }
 
 .contract-panel {
@@ -457,6 +577,7 @@ body {
   box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
   z-index: 1000;
   font-size: 14px;
+  min-height: 52px;
 }
 
 .status-left .word-count {
@@ -476,7 +597,10 @@ body {
 .status-right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
+  min-width: 220px;
+  text-align: right;
 }
 
 .saving-indicator {
@@ -488,6 +612,21 @@ body {
 .last-saved {
   color: #6b7280;
   font-size: 14px;
+  font-weight: 600;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {
@@ -514,7 +653,6 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   margin: 0 4px;
-
 }
 
 .profile-select-status:hover {
@@ -746,7 +884,6 @@ body {
     margin: 20mm;
   }
 
-  /* Hide interactive UI elements */
   .status-bar,
   .control-group,
   .right-panel,
@@ -754,7 +891,6 @@ body {
     display: none !important;
   }
 
-  /* Force layout to be block-level without grids */
   .editor-wrapper,
   .editor-layout,
   .center-editor,
@@ -768,7 +904,6 @@ body {
     background: transparent !important;
   }
 
-  /* Style the editor for print */
   .tiptap {
     max-width: none !important;
     padding: 0 !important;
@@ -779,7 +914,6 @@ body {
     color: #000 !important;
   }
 
-  /* Table styling for print */
   .tiptap table {
     border-collapse: collapse !important;
     width: 100% !important;
@@ -787,13 +921,13 @@ body {
     margin: 1.5em 0 !important;
     page-break-inside: auto !important;
   }
-  
+
   .tiptap tr {
     page-break-inside: avoid !important;
     page-break-after: auto !important;
   }
-  
-  .tiptap th, 
+
+  .tiptap th,
   .tiptap td {
     border: 1px solid #000 !important;
     padding: 8px 12px !important;
@@ -801,7 +935,7 @@ body {
     vertical-align: top !important;
     word-break: break-word !important;
   }
-  
+
   .tiptap th {
     background-color: #f8fafc !important;
     -webkit-print-color-adjust: exact !important;
@@ -809,7 +943,6 @@ body {
     font-weight: bold !important;
   }
 
-  /* Remove block indicator UI */
   [block-id]::before {
     display: none !important;
   }
@@ -820,17 +953,14 @@ body {
     background: transparent !important;
   }
 
-  /* Hide custom table resize handles */
   .column-resize-handle {
     display: none !important;
   }
 
-  /* Remove blue highlight from selected cells */
   .selectedCell {
     background-color: transparent !important;
   }
 }
-
 
 /* TABLET */
 @media (max-width: 1024px) {
@@ -926,7 +1056,6 @@ body {
     max-height: 90vh;
   }
 }
-
 
 /* SMALL PHONES */
 @media (max-width: 480px) {

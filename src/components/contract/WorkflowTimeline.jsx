@@ -1,20 +1,11 @@
 /**
  * WorkflowTimeline.jsx
  * 
- * Displays a visual timeline indicating the document's current position 
- * within the predefined contract review lifecycle (e.g., Draft -> Review -> Accepted).
+ * Displays a visual timeline indicating the document's current position
+ * within the predefined contract review lifecycle.
  */
-import { WORKFLOW_STATES } from '../../utils/contractConstants'
+import { WORKFLOW_ORDER, WORKFLOW_STATES } from '../../utils/contractConstants'
 import { useLanguage } from '../../context/LanguageContext'
-
-// Array defining the sequential order of workflow steps
-const steps = [
-    WORKFLOW_STATES.DRAFT,
-    WORKFLOW_STATES.UNDER_REVIEW,
-    WORKFLOW_STATES.CHANGES_REQUESTED,
-    WORKFLOW_STATES.ACCEPTED,
-    WORKFLOW_STATES.REJECTED,
-]
 
 /**
  * WorkflowTimeline Component
@@ -33,21 +24,24 @@ export default function WorkflowTimeline({ workflowStatus }) {
         [WORKFLOW_STATES.REJECTED]: t.rejected,
     }
 
+    const currentIndex = WORKFLOW_ORDER.indexOf(workflowStatus)
+
     return (
         <div className="contract-panel">
             <h3>{t.workflow}</h3>
 
             <div className="workflow-list">
-                {steps.map((step) => {
+                {WORKFLOW_ORDER.map((step, index) => {
                     const isActive = workflowStatus === step
+                    const isCompleted = currentIndex >= index && currentIndex !== -1
 
                     return (
                         <div
                             key={step}
-                            className={`workflow-item ${isActive ? 'active' : ''}`}
+                            className={`workflow-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
                         >
                             <div className="workflow-dot" />
-                            <span>{labels[step]}</span>
+                            <span>{labels[step] || step}</span>
                             {isActive && <span className="current-badge">{t.current}</span>}
                         </div>
                     )

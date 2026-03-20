@@ -1,55 +1,55 @@
 import { resolveTextWithVariables } from './resolveVariables';
 
 export const buildCleanExportHtml = (resolvedContent) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(resolvedContent, 'text/html');
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(resolvedContent, 'text/html');
 
-    doc.querySelectorAll('[block-id]').forEach((el) => {
-        el.removeAttribute('block-id');
-    });
+  doc.querySelectorAll('[block-id]').forEach((el) => {
+    el.removeAttribute('block-id');
+  });
 
-    doc.querySelectorAll('.column-resize-handle').forEach((el) => el.remove());
+  doc.querySelectorAll('.column-resize-handle').forEach((el) => el.remove());
 
-    doc.querySelectorAll('.selectedCell').forEach((el) => {
-        el.classList.remove('selectedCell');
-    });
+  doc.querySelectorAll('.selectedCell').forEach((el) => {
+    el.classList.remove('selectedCell');
+  });
 
-    doc.querySelectorAll('table').forEach((table) => {
-        table.style.borderCollapse = 'collapse';
-        table.style.width = '100%';
-        table.style.tableLayout = 'fixed';
-        table.style.margin = '24px 0';
-    });
+  doc.querySelectorAll('table').forEach((table) => {
+    table.style.borderCollapse = 'collapse';
+    table.style.width = '100%';
+    table.style.tableLayout = 'fixed';
+    table.style.margin = '24px 0';
+  });
 
-    doc.querySelectorAll('th, td').forEach((cell) => {
-        cell.style.border = '1px solid #444';
-        cell.style.padding = '8px 10px';
-        cell.style.verticalAlign = 'top';
-        cell.style.textAlign = 'left';
-        cell.style.wordBreak = 'break-word';
-    });
+  doc.querySelectorAll('th, td').forEach((cell) => {
+    cell.style.border = '1px solid #444';
+    cell.style.padding = '8px 10px';
+    cell.style.verticalAlign = 'top';
+    cell.style.textAlign = 'left';
+    cell.style.wordBreak = 'break-word';
+  });
 
-    doc.querySelectorAll('th').forEach((th) => {
-        th.style.fontWeight = '600';
-        th.style.backgroundColor = '#f8fafc';
-    });
+  doc.querySelectorAll('th').forEach((th) => {
+    th.style.fontWeight = '600';
+    th.style.backgroundColor = '#f8fafc';
+  });
 
-    doc.querySelectorAll('img').forEach((img) => {
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-    });
+  doc.querySelectorAll('img').forEach((img) => {
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+  });
 
-    return doc.body.innerHTML;
+  return doc.body.innerHTML;
 };
 
 export const printDocument = (editorHtml, variables, orientation = 'portrait') => {
-    const resolvedContent = resolveTextWithVariables(editorHtml, variables);
-    const cleanContent = buildCleanExportHtml(resolvedContent);
-    const printWindow = window.open('', '_blank');
+  const resolvedContent = resolveTextWithVariables(editorHtml, variables);
+  const cleanContent = buildCleanExportHtml(resolvedContent);
+  const printWindow = window.open('', '_blank');
 
-    if (!printWindow) return;
+  if (!printWindow) return;
 
-    printWindow.document.write(`
+  printWindow.document.write(`
       <html>
         <head>
           <title>Print Document</title>
@@ -114,5 +114,5 @@ export const printDocument = (editorHtml, variables, orientation = 'portrait') =
       </html>
     `);
 
-    printWindow.document.close();
+  printWindow.document.close();
 };

@@ -3,7 +3,7 @@
  * 
  * Main application component for the AI-LAW Editor.
  * This component handles the Tiptap editor initialization, state management for versions,
- * contract variables, workflow status, and renders the layout including the MenuBar, 
+ * contract variables, workflow status, OCR upload, and renders the layout including the MenuBar,
  * StatusBar, and various dialog modals.
  */
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -28,14 +28,17 @@ import WorkflowTimeline from './components/contract/WorkflowTimeline'
 import ReviewActions from './components/contract/ReviewActions'
 
 import useContractVariables from './hooks/useContractVariables'
-import useWorkflowState from './hooks/useWorkflowState'
-import { WORKFLOW_LABELS } from './utils/contractConstants'
+import { WORKFLOW_LABELS, WORKFLOW_STATES } from './utils/contractConstants'
 
 import { debounce } from 'lodash'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 
-import { PlaceholderHighlight } from './extensions/PlaceholderHighlight';
-import { PlaceholderSuggestion } from './extensions/PlaceholderSuggestion';
+import { PlaceholderHighlight } from './extensions/PlaceholderHighlight'
+import { PlaceholderSuggestion } from './extensions/PlaceholderSuggestion'
+
+import { mapOCRBlocksToHTML } from './utils/mapOCRBlocksToHTML'
+import { formatOCRText } from './utils/formatOCRText'
+
 import './App.css'
 
 const STORAGE_KEY = 'tiptap_editor_v5_stable'
@@ -86,6 +89,9 @@ const App = () => {
 
   const [showVariablesPanel, setShowVariablesPanel] = useState(true)
 
+  const [isOcrLoading, setIsOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState('')
+
   const {
     variables,
     setVariables,
@@ -95,20 +101,89 @@ const App = () => {
     syncPlaceholders,
   } = useContractVariables()
 
-  const {
-    workflowStatus,
-    setUnderReview,
-    setAccepted,
-    setChangesRequested,
-    setRejected,
-  } = useWorkflowState()
-
   const normalizedProfile = profile?.toLowerCase() || 'contract'
+
+  const currentVersion = versions.find((v) => v.id === currentVersionId)
+
+  const workflowStatus =
+    currentVersion?.metadata?.reviewStatus || WORKFLOW_STATES.DRAFT
+
+  const currentReviewComments =
+    currentVersion?.metadata?.reviewComments || []
+
+  const currentSentForReviewAt =
+    currentVersion?.metadata?.sentForReviewAt || null
 
   // Update profile type ensuring it defaults to 'contract'
   const handleProfileChange = useCallback((value) => {
     setProfile(value?.toLowerCase() || 'contract')
   }, [])
+
+  const updateCurrentVersionMetadata = useCallback(
+    (updates) => {
+      setVersions((prev) => {
+        const updated = prev.map((v) =>
+          v.id === currentVersionId
+            ? {
+              ...v,
+              metadata: {
+                ...(v.metadata || {}),
+                ...updates,
+              },
+            }
+            : v
+        )
+
+        saveToStorage(updated)
+        return updated
+      })
+    },
+    [currentVersionId]
+  )
+
+  const sendForReview = useCallback(() => {
+    updateCurrentVersionMetadata({
+      reviewStatus: WORKFLOW_STATES.UNDER_REVIEW,
+      sentForReviewAt: new Date().toISOString(),
+    })
+  }, [updateCurrentVersionMetadata])
+
+  const markApproved = useCallback(() => {
+    updateCurrentVersionMetadata({
+      reviewStatus: WORKFLOW_STATES.ACCEPTED,
+    })
+  }, [updateCurrentVersionMetadata])
+
+  const markChangesRequested = useCallback(() => {
+    updateCurrentVersionMetadata({
+      reviewStatus: WORKFLOW_STATES.CHANGES_REQUESTED,
+    })
+  }, [updateCurrentVersionMetadata])
+
+  const markRejected = useCallback(() => {
+    updateCurrentVersionMetadata({
+      reviewStatus: WORKFLOW_STATES.REJECTED,
+    })
+  }, [updateCurrentVersionMetadata])
+
+  const addReviewComment = useCallback(
+    (text) => {
+      if (!text?.trim()) return
+
+      const existingComments = currentVersion?.metadata?.reviewComments || []
+
+      updateCurrentVersionMetadata({
+        reviewComments: [
+          ...existingComments,
+          {
+            text: text.trim(),
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      })
+    },
+    [currentVersion, updateCurrentVersionMetadata]
+  )
 
   // Auto-show variables panel when profile is 'contract'
   useEffect(() => {
@@ -192,7 +267,7 @@ const App = () => {
 
         if (mod && !e.shiftKey && !e.altKey && key === 'k') {
           e.preventDefault()
-          setLinkModalInitialUrl(editor?.getAttributes('link').href || '')
+          setLinkModalInitialUrl(editor?.getAttributes('link')?.href || '')
           setIsLinkModalOpen(true)
           return true
         }
@@ -249,19 +324,23 @@ const App = () => {
       window.editor = editor
       window.editorInstance = editor
     }
+
+    return () => {
+      if (window.editor === editor) delete window.editor
+      if (window.editorInstance === editor) delete window.editorInstance
+    }
   }, [editor])
 
-
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) return
 
     editor.storage.placeholderSuggestion.items = [
       'ClientName',
       'Address',
       'Date',
       'Amount',
-    ];
-  }, [editor]);
+    ]
+  }, [editor])
 
   /**
    * Manually saves the current editor state immediately, bypassing debounce.
@@ -304,7 +383,12 @@ const App = () => {
         json,
         timestamp: formatTimestamp(new Date()),
         isFormatted: true,
-        metadata: { variables },
+        metadata: {
+          variables,
+          reviewStatus: WORKFLOW_STATES.DRAFT,
+          sentForReviewAt: null,
+          reviewComments: [],
+        },
       }
       const updated = [...prev, newVersion]
       saveToStorage(updated)
@@ -312,10 +396,6 @@ const App = () => {
       return updated
     })
   }, [editor, variables])
-
-
-
-
 
   useEffect(() => {
     if (!editor) return
@@ -381,8 +461,15 @@ const App = () => {
       const initialContent = {
         type: 'doc',
         content: [
-          { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'AI Law Document Example' }] },
-          { type: 'paragraph', content: [{ type: 'text', text: 'Testing versioning, block IDs and table structure.' }] },
+          {
+            type: 'heading',
+            attrs: { level: 1 },
+            content: [{ type: 'text', text: 'AI Law Document Example' }],
+          },
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Testing versioning, block IDs and table structure.' }],
+          },
         ],
       }
 
@@ -393,6 +480,9 @@ const App = () => {
         isFormatted: true,
         metadata: {
           variables: {},
+          reviewStatus: WORKFLOW_STATES.DRAFT,
+          sentForReviewAt: null,
+          reviewComments: [],
         },
       }
 
@@ -426,6 +516,60 @@ const App = () => {
       editor.off('update', updatePlaceholdersFromEditor)
     }
   }, [editor, syncPlaceholders])
+
+  const handleOCRUpload = useCallback(async (file) => {
+    if (!file || !editor) return
+
+    setOcrError('')
+    setIsOcrLoading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('http://localhost:8000/extract-text', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error(`OCR request failed with status ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      const extractedText = data?.text?.trim()
+      const blocks = Array.isArray(data?.blocks) ? data.blocks : []
+
+      if (!extractedText && !blocks.length) {
+        throw new Error('No text was extracted from the uploaded file.')
+      }
+
+      let formattedHtml = ''
+      if (blocks.length) {
+        formattedHtml = mapOCRBlocksToHTML(blocks, normalizedProfile)
+      } else {
+        formattedHtml = formatOCRText(extractedText || '')
+      }
+
+      editor.commands.setContent(formattedHtml, false)
+
+      const latestText = editor.getText()
+      const placeholders = extractPlaceholdersFromText(latestText)
+      syncPlaceholders(placeholders)
+
+      let count = 0
+      editor.state.doc.descendants((node) => {
+        if (node.attrs?.['block-id']) count++
+      })
+      setBlockCount(count)
+    } catch (error) {
+      console.error('OCR upload failed:', error)
+      setOcrError(error.message || 'OCR upload failed.')
+    } finally {
+      setIsOcrLoading(false)
+    }
+  }, [editor, normalizedProfile, syncPlaceholders])
 
   // Global Shortcuts for saving, versioning, and printing
   useEffect(() => {
@@ -498,14 +642,17 @@ const App = () => {
         onCompare={compareTwoVersions}
         versions={versions}
         onOpenLinkModal={() => {
-          setLinkModalInitialUrl(editor.getAttributes('link').href || '')
+          setLinkModalInitialUrl(editor.getAttributes('link')?.href || '')
           setIsLinkModalOpen(true)
         }}
         onOpenPreview={() => setIsPreviewModalOpen(true)}
         profile={normalizedProfile}
         onToggleVariablesPanel={() => setShowVariablesPanel((prev) => !prev)}
-        onSendForReview={setUnderReview}
+        onSendForReview={sendForReview}
         onInsertPlaceholder={insertPlaceholder}
+        onOCRUpload={handleOCRUpload}
+        isOcrLoading={isOcrLoading}
+        ocrError={ocrError}
       />
 
       <div className={`editor-layout ${normalizedProfile === 'contract' && showVariablesPanel ? 'with-right-panel' : ''}`}>
@@ -525,10 +672,13 @@ const App = () => {
 
             <ReviewActions
               workflowStatus={WORKFLOW_LABELS[workflowStatus] || workflowStatus}
-              setUnderReview={setUnderReview}
-              setAccepted={setAccepted}
-              setChangesRequested={setChangesRequested}
-              setRejected={setRejected}
+              onSendForReview={sendForReview}
+              onApprove={markApproved}
+              onRequestChanges={markChangesRequested}
+              onReject={markRejected}
+              reviewComments={currentReviewComments}
+              onAddComment={addReviewComment}
+              sentForReviewAt={currentSentForReviewAt}
             />
 
             <WorkflowTimeline workflowStatus={workflowStatus} />
