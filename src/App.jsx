@@ -17,14 +17,8 @@ import {
   SOP_STATES,
 } from './utils/sopConstants'
 import { transitionSOP, canEditSOP } from './utils/sopStateMachine'
-
-
-
-import {
-  canSubmitSOPForReview,
-  canApproveSOP,
-  canMarkSOPObsolete,
-} from './utils/sopValidation'
+import { validateSOPTransition } from './utils/sopValidation'
+import sopWorkflowConfig from './utils/sopWorkflowConfig'
 
 
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -474,95 +468,46 @@ const App = () => {
     [currentVersion, updateCurrentVersionMetadata]
   )
 
-  const submitSOPForReview = useCallback(
-    async (note = '') => {
-      const result = canSubmitSOPForReview({
-        metadata: currentSOPMetadata,
-        note,
-      })
+  /**
+   * Generic SOP action handler — replaces submitSOPForReview, approveSOP,
+   * sendSOPBackToDraft, and markSOPObsolete with a single config-driven function.
+   */
+  const executeSOPAction = useCallback(
+    async (actionId, { note = '', actionFields = {} } = {}) => {
+      const transition = sopWorkflowConfig.transitions[actionId]
+      if (!transition) return { ok: false, error: `Unknown action: ${actionId}` }
 
-      setSOPFieldErrors(result.fieldErrors || {})
-
-      if (!result.ok) return result
-
-      updateSOPState(
-        SOP_STATES.UNDER_REVIEW,
-        note || 'Submitted for review'
+      // Validate using config-driven rules
+      const result = validateSOPTransition(
+        actionId,
+        { metadata: currentSOPMetadata, note, actionFields },
+        sopWorkflowConfig
       )
 
-      setSOPFieldErrors({})
-      return { ok: true }
-    },
-    [currentSOPMetadata, updateSOPState]
-  )
-
-
-
-  const approveSOP = useCallback(
-    async ({ note = '', approvalSignature = '' } = {}) => {
-      const result = canApproveSOP({
-        metadata: currentSOPMetadata,
-        references: [
-          ...(currentSOPMetadata?.references || []),
-          ...(currentSOPMetadata?.regulatoryReferences || []),
-        ],
-        approvalSignature,
-      })
-
       setSOPFieldErrors(result.fieldErrors || {})
-
       if (!result.ok) return result
 
-      updateCurrentVersionMetadata({
-        approvalSignature,
-      })
+      // Persist action-specific extra fields into version metadata
+      const extraMetadata = {}
+      for (const field of transition.fields || []) {
+        if (actionFields[field.key] !== undefined) {
+          extraMetadata[field.key] = actionFields[field.key]
+        }
+      }
+      if (Object.keys(extraMetadata).length > 0) {
+        updateCurrentVersionMetadata(extraMetadata)
+      }
 
+      // Execute the state transition
       updateSOPState(
-        SOP_STATES.EFFECTIVE,
-        note || 'Approved'
+        transition.to,
+        note || `Action: ${actionId}`
       )
 
       setSOPFieldErrors({})
       return { ok: true }
     },
     [currentSOPMetadata, updateCurrentVersionMetadata, updateSOPState]
-  )
-
-  const sendSOPBackToDraft = useCallback(
-    async (note = '') => {
-      updateSOPState(
-        SOP_STATES.DRAFT,
-        note || 'Sent back to draft'
-      )
-
-      setSOPFieldErrors({})
-      return { ok: true }
-    },
-    [updateSOPState]
-  )
-  const markSOPObsolete = useCallback(
-    async ({ note = '', replacementDocumentId = '' } = {}) => {
-      const result = canMarkSOPObsolete({
-        note,
-        replacementDocumentId,
-      })
-
-      if (!result.ok) return result
-
-      updateCurrentVersionMetadata({
-        replacementDocumentId,
-        obsoleteReason: note,
-      })
-
-      updateSOPState(
-        SOP_STATES.OBSOLETE,
-        note || 'Marked obsolete'
-      )
-
-      setSOPFieldErrors({})
-      return { ok: true }
-    },
-    [updateCurrentVersionMetadata, updateSOPState]
   )
 
   useEffect(() => {
@@ -1123,10 +1068,7 @@ const App = () => {
 
             <SOPActions
               sopStatus={currentSOPStatus}
-              onSubmitForReview={submitSOPForReview}
-              onApprove={approveSOP}
-              onSendBackToDraft={sendSOPBackToDraft}
-              onMarkObsolete={markSOPObsolete}
+              onAction={executeSOPAction}
               isClientReviewMode={isClientReviewMode}
             />
 

@@ -1,4 +1,14 @@
+/**
+ * SOPMetadataPanel.jsx
+ *
+ * Config-driven SOP metadata form.
+ *
+ * Before: 10 hardcoded input fields.
+ * After:  reads config.metadataFields[] to render fields dynamically.
+ *         Adding a new metadata field = adding one entry to config.
+ */
 import { useLanguage } from '../../context/LanguageContext'
+import { useSOPConfig } from '../../context/SOPConfigContext'
 
 export default function SOPMetadataPanel({
     metadata,
@@ -7,12 +17,100 @@ export default function SOPMetadataPanel({
     errors = {},
 }) {
     const { t } = useLanguage()
+    const config = useSOPConfig()
 
-    const handleFieldChange = (field, value) => {
+    const handleFieldChange = (key, value) => {
         onChange?.({
             ...metadata,
-            [field]: value,
+            [key]: value,
         })
+    }
+
+    /**
+     * Render a single metadata field based on its config definition.
+     */
+    const renderField = (fieldDef) => {
+        const { key, type, label, required, multiValue, separator } = fieldDef
+        const hasError = errors[key]
+
+        // Multi-value textarea (e.g. regulatoryReferences)
+        if (type === 'textarea' && multiValue) {
+            const arrayValue = Array.isArray(metadata?.[key]) ? metadata[key] : []
+            return (
+                <div key={key}>
+                    <textarea
+                        placeholder={t[label] || label}
+                        value={arrayValue.join(separator || '\n')}
+                        onChange={(e) =>
+                            handleFieldChange(
+                                key,
+                                e.target.value
+                                    .split(separator || '\n')
+                                    .map((item) => item.trim())
+                                    .filter(Boolean)
+                            )
+                        }
+                        disabled={isReadOnly}
+                        rows={4}
+                    />
+                    {hasError && (
+                        <p style={{ color: 'red', fontSize: 12 }}>{hasError}</p>
+                    )}
+                </div>
+            )
+        }
+
+        // Regular textarea
+        if (type === 'textarea') {
+            return (
+                <div key={key}>
+                    <textarea
+                        placeholder={t[label] || label}
+                        value={metadata?.[key] || ''}
+                        onChange={(e) => handleFieldChange(key, e.target.value)}
+                        disabled={isReadOnly}
+                        rows={4}
+                    />
+                    {hasError && (
+                        <p style={{ color: 'red', fontSize: 12 }}>{hasError}</p>
+                    )}
+                </div>
+            )
+        }
+
+        // Date input
+        if (type === 'date') {
+            return (
+                <div key={key}>
+                    <input
+                        type="date"
+                        value={metadata?.[key] || ''}
+                        onChange={(e) => handleFieldChange(key, e.target.value)}
+                        disabled={isReadOnly}
+                        title={t[label] || label}
+                    />
+                    {hasError && (
+                        <p style={{ color: 'red', fontSize: 12 }}>{hasError}</p>
+                    )}
+                </div>
+            )
+        }
+
+        // Default: text input
+        return (
+            <div key={key}>
+                <input
+                    type="text"
+                    placeholder={t[label] || label}
+                    value={metadata?.[key] || ''}
+                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                    disabled={isReadOnly}
+                />
+                {hasError && (
+                    <p style={{ color: 'red', fontSize: 12 }}>{hasError}</p>
+                )}
+            </div>
+        )
     }
 
     return (
@@ -20,105 +118,7 @@ export default function SOPMetadataPanel({
             <h3>{t.sopMetadata}</h3>
 
             <div style={{ display: 'grid', gap: 10 }}>
-                <div>
-                    <input
-                        type="text"
-                        placeholder={t.documentId}
-                        value={metadata?.documentId || ''}
-                        onChange={(e) => handleFieldChange('documentId', e.target.value)}
-                        disabled={isReadOnly}
-                    />
-                    {errors.documentId && (
-                        <p style={{ color: 'red', fontSize: 12 }}>{errors.documentId}</p>
-                    )}
-                </div>
-
-                <div>
-                    <input
-                        type="text"
-                        placeholder={t.title}
-                        value={metadata?.title || ''}
-                        onChange={(e) => handleFieldChange('title', e.target.value)}
-                        disabled={isReadOnly}
-                    />
-                    {errors.title && (
-                        <p style={{ color: 'red', fontSize: 12 }}>{errors.title}</p>
-                    )}
-                </div>
-
-                <input
-                    type="text"
-                    placeholder={t.department}
-                    value={metadata?.department || ''}
-                    onChange={(e) => handleFieldChange('department', e.target.value)}
-                    disabled={isReadOnly}
-                />
-
-                <div>
-                    <input
-                        type="text"
-                        placeholder={t.author}
-                        value={metadata?.author || ''}
-                        onChange={(e) => handleFieldChange('author', e.target.value)}
-                        disabled={isReadOnly}
-                    />
-                    {errors.author && (
-                        <p style={{ color: 'red', fontSize: 12 }}>{errors.author}</p>
-                    )}
-                </div>
-
-                <div>
-                    <input
-                        type="text"
-                        placeholder={t.reviewer}
-                        value={metadata?.reviewer || ''}
-                        onChange={(e) => handleFieldChange('reviewer', e.target.value)}
-                        disabled={isReadOnly}
-                    />
-                    {errors.reviewer && (
-                        <p style={{ color: 'red', fontSize: 12 }}>{errors.reviewer}</p>
-                    )}
-                </div>
-
-                <input
-                    type="date"
-                    value={metadata?.effectiveDate || ''}
-                    onChange={(e) => handleFieldChange('effectiveDate', e.target.value)}
-                    disabled={isReadOnly}
-                    title={t.effectiveDate}
-                />
-
-                <input
-                    type="date"
-                    value={metadata?.reviewDate || ''}
-                    onChange={(e) => handleFieldChange('reviewDate', e.target.value)}
-                    disabled={isReadOnly}
-                    title={t.reviewDate}
-                />
-
-                <input
-                    type="text"
-                    placeholder={t.riskLevel}
-                    value={metadata?.riskLevel || ''}
-                    onChange={(e) => handleFieldChange('riskLevel', e.target.value)}
-                    disabled={isReadOnly}
-                />
-
-                <textarea
-                    placeholder={t.regulatoryReferences}
-                    value={(metadata?.regulatoryReferences || []).join('\n')}
-                    onChange={(e) =>
-                        handleFieldChange(
-                            'regulatoryReferences',
-                            e.target.value
-                                .split('\n')
-                                .map((item) => item.trim())
-                                .filter(Boolean)
-                        )
-                    }
-                    disabled={isReadOnly}
-                    rows={4}
-                />
+                {config.metadataFields.map(renderField)}
             </div>
         </div>
     )
