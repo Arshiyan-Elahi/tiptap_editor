@@ -24,6 +24,8 @@ export const MenuBar = ({
     editor,
     onSave,
     onNewVersion,
+    onCreateNewDocument,
+    onDuplicateAsNewDocument,
     currentVersion,
     onLoadVersion,
     versions,
@@ -103,6 +105,45 @@ export const MenuBar = ({
                 >
                     {t.newVersion}
                 </button>
+
+                {/* ── Document Management buttons ───────────────────────── */}
+                <span style={{
+                    display: 'inline-block',
+                    width: 1,
+                    height: 22,
+                    background: 'rgba(255,255,255,0.15)',
+                    margin: '0 6px',
+                    verticalAlign: 'middle',
+                }} />
+
+                <button
+                    type="button"
+                    className="save-btn"
+                    onClick={onCreateNewDocument}
+                    title="Create a brand-new SOP document with a new permanent document ID"
+                >
+                    New Document
+                </button>
+
+                <button
+                    type="button"
+                    className="save-btn"
+                    onClick={onDuplicateAsNewDocument}
+                    title="Copy current content into a brand-new document with a new document ID"
+                >
+                    Duplicate Doc
+                </button>
+
+                <span style={{
+                    display: 'inline-block',
+                    width: 1,
+                    height: 22,
+                    background: 'rgba(255,255,255,0.15)',
+                    margin: '0 6px',
+                    verticalAlign: 'middle',
+                }} />
+                {/* ─────────────────────────────────────────────────────── */}
+
 
 
                 <select

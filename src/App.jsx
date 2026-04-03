@@ -38,6 +38,7 @@ import StatusBar from './components/StatusBar'
 import LinkModal from './components/LinkModal'
 import PreviewModal from './components/PreviewModal'
 import SideBySideViewer from './diff/SideBySideViewer'
+import Toast from './components/Toast'
 
 import VariablesPanel from './components/contract/VariablesPanel'
 import WorkflowTimeline from './components/contract/WorkflowTimeline'
@@ -63,7 +64,10 @@ import {
   createVersion,
   getVersion,
   updateVersionStatus,
+  duplicateDocument,
 } from './api/editorApi'
+
+import { isEditorContentEmpty } from './utils/editorUtils'
 
 import { PlaceholderHighlight } from './extensions/PlaceholderHighlight'
 import { PlaceholderSuggestion } from './extensions/PlaceholderSuggestion'
@@ -75,6 +79,27 @@ import featureFlags from './config/featureFlags'
 import './App.css'
 
 const STORAGE_KEY = 'tiptap_editor_v5_stable'
+
+/**
+ * Normalize backend metadata_json into the shape the frontend expects:
+ * { sopStatus, sopMetadata: {...fields}, auditTrail, versionNote, ... }
+ *
+ * The backend stores whatever the frontend last saved.
+ * - If previously saved by the frontend, metadata already has sopMetadata + sopStatus.
+ * - If seeded raw from DB (flat fields), we wrap it into sopMetadata.
+ */
+const normalizeMeta = (rawMeta) => {
+  if (!rawMeta || typeof rawMeta !== 'object') return { ...DEFAULT_SOP_VERSION_METADATA }
+  // Already has the expected frontend shape — use as-is
+  if (rawMeta.sopMetadata !== undefined) return rawMeta
+  // Flat/seeded metadata — treat the whole object as sopMetadata fields
+  return {
+    ...DEFAULT_SOP_VERSION_METADATA,
+    sopMetadata: { ...DEFAULT_SOP_VERSION_METADATA.sopMetadata, ...rawMeta },
+    sopStatus: rawMeta.sopStatus || DEFAULT_SOP_VERSION_METADATA.sopStatus,
+    auditTrail: rawMeta.auditTrail || [],
+  }
+}
 
 const formatTimestamp = (date) => {
   const d = date || new Date()
@@ -118,6 +143,12 @@ const App = () => {
   const [isClientReviewMode, setIsClientReviewMode] = useState(false)
   const [reviewLink, setReviewLink] = useState('')
   const [reviewToken, setReviewToken] = useState(null)
+
+  // Toast notification state — { message, type }
+  const [toast, setToast] = useState(null)
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type })
+  }, [])
 
   const {
     variables,
@@ -622,7 +653,30 @@ const App = () => {
   const createNewVersionHandler = useCallback(async () => {
     if (!editor || !canCreateNewVersion || !documentId) return
 
-    const json = editor.getJSON()
+    const editorJson = editor.getJSON()
+
+    // ── Empty-content detection ──────────────────────────────────────────────
+    // If the editor is blank/only has empty paragraphs, do NOT save blank content.
+    // Prefer the previous version's content as a safe fallback instead.
+    let finalJson = editorJson
+
+    if (isEditorContentEmpty(editorJson)) {
+      // Try to fall back to the current version's already-saved content
+      const previousContent = currentVersion?.json || null
+
+      if (!previousContent || isEditorContentEmpty(previousContent)) {
+        // Both editor AND previous version are empty — block version creation
+        alert('Cannot create a new version with empty content.\nPlease add content to the editor first.')
+        return
+      }
+
+      // Silently use the previous version's content as the base for the new version
+      console.warn(
+        '[createNewVersionHandler] Editor is empty — using previous version content as base for new version'
+      )
+      finalJson = previousContent
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     const currentMeta = currentVersion?.metadata || {}
     const newMetadata = {
@@ -633,7 +687,7 @@ const App = () => {
 
     try {
       const newVersion = await createVersion(documentId, {
-        doc_json: json,
+        doc_json: finalJson,
         change_summary: 'New version created',
         metadata_json: newMetadata,
       })
@@ -646,7 +700,7 @@ const App = () => {
         json: fullVersion.doc_json,
         timestamp: formatTimestamp(new Date(fullVersion.created_at)),
         isFormatted: true,
-        metadata: fullVersion.metadata_json || {},
+        metadata: normalizeMeta(fullVersion.metadata_json),
       }
 
       setVersions((prev) => [...prev, versionObj])
@@ -657,8 +711,130 @@ const App = () => {
       editor.commands.setContent(fullVersion.doc_json, false)
     } catch (error) {
       console.error('Create version failed:', error)
+      alert(`Version creation failed: ${error.message}`)
     }
   }, [editor, canCreateNewVersion, documentId, currentVersion, variables])
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Create New Document
+  //
+  // Creates a brand-new parent SOP (new sops.id) with a fresh first version.
+  // Separate from "Create New Version" which stays under the same sops.id.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const createNewDocumentHandler = useCallback(async () => {
+    if (!editor) return
+
+    // Default title — user can rename it in the metadata panel after creation
+    const title = 'Untitled SOP'
+
+    try {
+      // New document always starts with a blank canvas (not the current editor content)
+      const initialContent = { type: 'doc', content: [] }
+
+      // POST /api/editor/docs → new sops row + v1 sop_versions row
+      const newDoc = await createDocument({
+        title,
+        profile: 'sop',
+        doc_json: initialContent,
+        metadata_json: {},
+      })
+
+      const doc = await getDocument(newDoc.id)
+      const dbVersions = await getVersions(newDoc.id)
+
+      const mappedVersions = dbVersions.map((v) => ({
+        id: v.id,
+        versionNumber: v.version_number,
+        json: v.doc_json || { type: 'doc', content: [] },
+        metadata: normalizeMeta(v.metadata_json),
+        status: v.status,
+        timestamp: formatTimestamp(new Date(v.created_at)),
+        isFormatted: true,
+      }))
+
+      // Switch the entire app state to the new document
+      setDocumentId(newDoc.id)
+      localStorage.setItem('current_document_id', newDoc.id)
+      setVersions(mappedVersions)
+      setCurrentVersionId(doc.current_version_id)
+      editor.commands.setContent(doc.doc_json || { type: 'doc', content: [] }, false)
+      setVariables(doc.metadata_json?.variables || {})
+      setReviewLink('')
+      setReviewToken(null)
+      setSOPFieldErrors({})
+      showToast(`New document created successfully: ${title}`)
+    } catch (error) {
+      console.error('Create new document failed:', error)
+      showToast(`Failed to create new document: ${error.message}`, 'error')
+    }
+  }, [editor, setVariables, showToast])
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Duplicate as New Document
+  //
+  // Copies current document content into a brand-new sops record (new sops.id).
+  // Title is automatically derived — no prompt needed.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const duplicateAsNewDocumentHandler = useCallback(async () => {
+    if (!editor || !documentId) return
+
+    // Derive title automatically from current doc metadata — no prompt
+    const currentTitle =
+      currentVersion?.metadata?.sopMetadata?.title ||
+      versions[0]?.metadata?.sopMetadata?.title ||
+      'SOP Document'
+    const title = `Copy of ${currentTitle}`
+
+    try {
+      // Prefer live editor content; fall back to last saved version content
+      const editorJson = editor.getJSON()
+      const contentToCopy = isEditorContentEmpty(editorJson)
+        ? currentVersion?.json || { type: 'doc', content: [] }
+        : editorJson
+
+      const currentMeta = currentVersion?.metadata || {}
+
+      // POST /api/editor/docs/{id}/duplicate → new sops.id + v1 sop_versions
+      const newDoc = await duplicateDocument(documentId, {
+        title,
+        doc_json: contentToCopy,
+        metadata_json: {
+          ...currentMeta,
+          sopStatus: SOP_STATES.DRAFT,  // always reset to draft on duplication
+        },
+      })
+
+      const doc = await getDocument(newDoc.id)
+      const dbVersions = await getVersions(newDoc.id)
+
+      const mappedVersions = dbVersions.map((v) => ({
+        id: v.id,
+        versionNumber: v.version_number,
+        json: v.doc_json || { type: 'doc', content: [] },
+        metadata: normalizeMeta(v.metadata_json),
+        status: v.status,
+        timestamp: formatTimestamp(new Date(v.created_at)),
+        isFormatted: true,
+      }))
+
+      // Switch to the new duplicated document
+      setDocumentId(newDoc.id)
+      localStorage.setItem('current_document_id', newDoc.id)
+      setVersions(mappedVersions)
+      setCurrentVersionId(doc.current_version_id)
+      editor.commands.setContent(doc.doc_json || { type: 'doc', content: [] }, false)
+      setVariables(doc.metadata_json?.variables || {})
+      setReviewLink('')
+      setReviewToken(null)
+      setSOPFieldErrors({})
+      showToast(`Duplicate document created successfully: ${title}`)
+    } catch (error) {
+      console.error('Duplicate document failed:', error)
+      showToast(`Failed to duplicate document: ${error.message}`, 'error')
+    }
+  }, [editor, documentId, currentVersion, versions, setVariables, showToast])
   useEffect(() => {
     if (!editor) return
 
@@ -702,7 +878,7 @@ const App = () => {
               ? {
                 ...v,
                 json: version.doc_json || { type: 'doc', content: [] },
-                metadata: version.metadata_json || {},
+                metadata: normalizeMeta(version.metadata_json),  // normalize into {sopStatus, sopMetadata, ...} shape
                 status: version.status,
               }
               : v
@@ -719,22 +895,33 @@ const App = () => {
     if (!docId || !editor) return
 
     try {
+      // GET /api/editor/docs/{id} returns a FLAT old-editor response:
+      // { id, title, doc_type, doc_json, metadata_json, current_version_id, version_number, status, ... }
+      // There is NO nested current_version object — we build one from the flat fields.
       const doc = await getDocument(docId)
       const dbVersions = await getVersions(docId)
       const mappedVersions = dbVersions.map((v) => ({
         id: v.id,
         versionNumber: v.version_number,
         json: v.doc_json || { type: 'doc', content: [] },
-        metadata: v.metadata_json || {},
+        metadata: normalizeMeta(v.metadata_json),
         status: v.status,
         timestamp: formatTimestamp(new Date(v.created_at)),
         isFormatted: true,
       }))
 
-      const currentVer = doc.current_version
+      // Build synthetic currentVer from flat doc response (old editor compat shape)
+      const currentVer = {
+        id: doc.current_version_id,
+        doc_json: doc.doc_json || { type: 'doc', content: [] },
+        metadata_json: doc.metadata_json || {},
+        version_number: doc.version_number,
+        status: doc.status,
+      }
+
       const finalVersions = mappedVersions.map((v) =>
         v.id === currentVer.id
-          ? { ...v, json: currentVer.doc_json || { type: 'doc', content: [] }, metadata: currentVer.metadata_json || {} }
+          ? { ...v, json: currentVer.doc_json || { type: 'doc', content: [] }, metadata: normalizeMeta(currentVer.metadata_json) }
           : v
       )
 
@@ -793,33 +980,43 @@ const App = () => {
         if (docId) {
           // Existing document — reload from DB
           try {
+            // GET /api/editor/docs/{id} returns a FLAT old-editor response:
+            // { id, title, doc_type, doc_json, metadata_json, current_version_id, version_number, status, ... }
+            // There is NO nested current_version object — build one from the flat fields.
             const doc = await getDocument(docId)
             setDocumentId(docId)
 
-            // Load all versions from DB (now includes doc_json)
+            // Load all versions from DB (each includes doc_json, doc_id, status)
             const dbVersions = await getVersions(docId)
             const mappedVersions = dbVersions.map((v) => ({
               id: v.id,
               versionNumber: v.version_number,
               json: v.doc_json || { type: 'doc', content: [] },
-              metadata: v.metadata_json || {},
+              metadata: normalizeMeta(v.metadata_json),
               status: v.status,
               timestamp: formatTimestamp(new Date(v.created_at)),
               isFormatted: true,
             }))
 
-            // Load full content for current version (safety: getDocument always has full doc_json)
-            const currentVer = doc.current_version
-            // Update current version's json in mapped list
+            // Build synthetic currentVer from flat doc response fields
+            const currentVer = {
+              id: doc.current_version_id,
+              doc_json: doc.doc_json || { type: 'doc', content: [] },
+              metadata_json: doc.metadata_json || {},
+              version_number: doc.version_number,
+              status: doc.status,
+            }
+
+            // Merge doc_json into the matching version entry
             const finalVersions = mappedVersions.map((v) =>
               v.id === currentVer.id
-                ? { ...v, json: currentVer.doc_json || { type: 'doc', content: [] }, metadata: currentVer.metadata_json || {} }
+                ? { ...v, json: currentVer.doc_json, metadata: normalizeMeta(currentVer.metadata_json) }
                 : v
             )
 
             setVersions(finalVersions)
             setCurrentVersionId(currentVer.id)
-            editor.commands.setContent(currentVer.doc_json || { type: 'doc', content: [] }, false)
+            editor.commands.setContent(currentVer.doc_json, false)
             setVariables(currentVer.metadata_json?.variables || {})
           } catch (fetchError) {
             // Document was deleted or not found — create fresh
@@ -830,27 +1027,62 @@ const App = () => {
         }
 
         if (!docId) {
-          // No existing document — create new
-          const created = await createDocument({
-            title: 'My SOP Document',
-            profile: 'sop',
-          })
+          // No existing document in localStorage.
+          // Step 1: Try to load the seeded/default SOP so a fresh browser doesn't get a blank document.
+          // Step 2: Only if the seed document doesn't exist in the DB, create a brand new blank one.
+          const SEED_DOCUMENT_ID = '22222222-2222-2222-2222-222222222222'
 
-          setDocumentId(created.id)
-          localStorage.setItem('current_document_id', created.id)
+          let doc = null
 
-          const doc = await getDocument(created.id)
-          const currentVer = doc.current_version
-          const versionObj = {
-            id: currentVer.id,
-            versionNumber: currentVer.version_number,
-            json: currentVer.doc_json,
-            timestamp: formatTimestamp(new Date(currentVer.created_at)),
-            isFormatted: true,
-            metadata: currentVer.metadata_json || {},
+          try {
+            doc = await getDocument(SEED_DOCUMENT_ID)
+            docId = SEED_DOCUMENT_ID
+            setDocumentId(docId)
+            localStorage.setItem('current_document_id', docId)
+          } catch {
+            // Seed document doesn't exist in DB — fall through to create a fresh one
           }
 
-          setVersions([versionObj])
+          if (!doc) {
+            // Seed not found — create a new blank SOP
+            const created = await createDocument({
+              title: 'My SOP Document',
+              profile: 'sop',
+            })
+
+            setDocumentId(created.id)
+            localStorage.setItem('current_document_id', created.id)
+            doc = await getDocument(created.id)
+            docId = created.id
+          }
+
+          // Load all versions for whichever doc we ended up with
+          const dbVersions = await getVersions(docId)
+          const mappedVersions = dbVersions.map((v) => ({
+            id: v.id,
+            versionNumber: v.version_number,
+            json: v.doc_json || { type: 'doc', content: [] },
+            metadata: normalizeMeta(v.metadata_json),
+            status: v.status,
+            timestamp: formatTimestamp(new Date(v.created_at)),
+            isFormatted: true,
+          }))
+
+          const currentVer = {
+            id: doc.current_version_id,
+            doc_json: doc.doc_json || { type: 'doc', content: [] },
+            metadata_json: doc.metadata_json || {},
+            version_number: doc.version_number,
+            status: doc.status,
+          }
+
+          const finalVersions = mappedVersions.map((v) =>
+            v.id === currentVer.id
+              ? { ...v, json: currentVer.doc_json, metadata: normalizeMeta(currentVer.metadata_json) }
+              : v
+          )
+
+          setVersions(finalVersions)
           setCurrentVersionId(currentVer.id)
           editor.commands.setContent(currentVer.doc_json, false)
           setVariables(currentVer.metadata_json?.variables || {})
@@ -1040,12 +1272,21 @@ const App = () => {
 
   return (
     <div className="editor-wrapper">
+      {/* Global toast notifications */}
+      <Toast
+        message={toast?.message}
+        type={toast?.type}
+        onClose={() => setToast(null)}
+      />
+
       <TopNavbar />
       {!isClientReviewMode && (
         <MenuBar
           editor={editor}
           onSave={manualSave}
           onNewVersion={createNewVersionHandler}
+          onCreateNewDocument={createNewDocumentHandler}
+          onDuplicateAsNewDocument={duplicateAsNewDocumentHandler}
           currentVersion={currentVersionId}
           onLoadVersion={loadVersion}
           onCompare={compareTwoVersions}
@@ -1131,6 +1372,10 @@ const App = () => {
               sopStatus={currentSOPStatus}
               onAction={executeSOPAction}
               isClientReviewMode={isClientReviewMode}
+              onCreateNewVersion={createNewVersionHandler}
+              onCreateNewDocument={createNewDocumentHandler}
+              onDuplicateAsNewDocument={duplicateAsNewDocumentHandler}
+              canCreateNewVersion={canCreateNewVersion}
             />
 
             <SOPTimeline sopStatus={currentSOPStatus} />

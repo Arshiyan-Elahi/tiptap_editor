@@ -2,12 +2,10 @@
  * SOPActions.jsx
  *
  * Config-driven SOP workflow action panel.
- *
- * Before: hardcoded buttons, hardcoded field visibility
- *         (approvalSignature only for APPROVE, replacementDocumentId only for MARK_OBSOLETE).
- *
- * After:  reads config.transitions to render buttons and fields dynamically.
- *         Adding a new transition with new fields never requires touching this component.
+ * Also renders the Document Management section for:
+ *   - Create New Version  (same sops.id, new sop_versions row)
+ *   - Create New Document (new sops.id, new v1)
+ *   - Duplicate as New Document (fork content into a new sops.id)
  */
 import { useMemo, useState } from 'react'
 import { useLanguage } from '../../context/LanguageContext'
@@ -18,6 +16,11 @@ export default function SOPActions({
     sopStatus,
     onAction,
     isClientReviewMode = false,
+    // ── Document management handlers (passed from App.jsx) ──
+    onCreateNewVersion,
+    onCreateNewDocument,
+    onDuplicateAsNewDocument,
+    canCreateNewVersion = false,
 }) {
     const { t } = useLanguage()
     const config = useSOPConfig()
@@ -140,6 +143,7 @@ export default function SOPActions({
                     ))}
                 </div>
             )}
+
         </div>
     )
 }
